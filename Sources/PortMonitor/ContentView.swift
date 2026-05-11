@@ -241,7 +241,7 @@ struct WindowContentView: View {
                     headerCell("PID", width: 80)
                     headerCell("User", width: 100, alignment: .leading)
                     Spacer(minLength: 0)
-                    headerCell("", width: 90)
+                    headerCell("Aktion", width: 200, alignment: .trailing)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 6)
@@ -374,6 +374,16 @@ private struct PortRow: View {
                 }
             }
             Spacer()
+            if PortScanner.likelyHttpPort(port.port) {
+                Button {
+                    PortScanner.openInBrowser(port: port.port)
+                } label: {
+                    Image(systemName: "safari")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("http://localhost:\(port.port) öffnen")
+            }
             Button {
                 confirmStop = true
             } label: {
@@ -443,27 +453,42 @@ private struct PortTableRow: View {
                 .lineLimit(1)
                 .frame(width: 100, alignment: .leading)
             Spacer(minLength: 0)
-            Button {
-                confirmStop = true
-            } label: {
-                Label("Stop", systemImage: "stop.fill")
-            }
-            .buttonStyle(.bordered)
-            .tint(.red)
-            .controlSize(.small)
-            .frame(width: 90)
-            .confirmationDialog(
-                "Prozess \u{201E}\(port.command)\u{201C} auf Port \(port.port) beenden?",
-                isPresented: $confirmStop,
-                titleVisibility: .visible
-            ) {
-                Button("Beenden (SIGTERM)", role: .destructive) {
-                    scanner.stop(pid: port.pid, port: port.port)
+            HStack(spacing: 6) {
+                if PortScanner.likelyHttpPort(port.port) {
+                    Button {
+                        PortScanner.openInBrowser(port: port.port)
+                    } label: {
+                        Label("Öffnen", systemImage: "safari")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("http://localhost:\(port.port) im Browser öffnen")
+                } else {
+                    Spacer()
+                        .frame(width: 80)
                 }
-                Button("Abbrechen", role: .cancel) {}
-            } message: {
-                Text("Nach 2 Sekunden wird SIGKILL gesendet, falls der Prozess noch läuft.")
+                Button {
+                    confirmStop = true
+                } label: {
+                    Label("Stop", systemImage: "stop.fill")
+                }
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .controlSize(.small)
+                .confirmationDialog(
+                    "Prozess \u{201E}\(port.command)\u{201C} auf Port \(port.port) beenden?",
+                    isPresented: $confirmStop,
+                    titleVisibility: .visible
+                ) {
+                    Button("Beenden (SIGTERM)", role: .destructive) {
+                        scanner.stop(pid: port.pid, port: port.port)
+                    }
+                    Button("Abbrechen", role: .cancel) {}
+                } message: {
+                    Text("Nach 2 Sekunden wird SIGKILL gesendet, falls der Prozess noch läuft.")
+                }
             }
+            .frame(width: 200, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)

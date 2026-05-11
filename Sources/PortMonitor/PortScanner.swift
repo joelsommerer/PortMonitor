@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import Darwin
+import AppKit
 
 struct PortInfo: Identifiable, Hashable {
     let id: String
@@ -25,6 +26,36 @@ final class PortScanner: ObservableObject {
         9000, 9001, 9090, 9229,
         27017, 5432, 3306, 6379, 11434
     ]
+
+    /// Ports von Diensten, die typischerweise kein HTTP sprechen.
+    /// Für diese verstecken wir den Browser-Button.
+    nonisolated static let nonHttpPorts: Set<Int> = [
+        22,    // SSH
+        25,    // SMTP
+        53,    // DNS
+        110,   // POP3
+        143,   // IMAP
+        465, 587,  // SMTP TLS/Submission
+        993, 995,  // IMAPS, POP3S
+        3306,  // MySQL
+        5432,  // PostgreSQL
+        6379,  // Redis
+        27017, // MongoDB
+        9092,  // Kafka
+        2181,  // ZooKeeper
+        11211  // Memcached
+    ]
+
+    nonisolated static func likelyHttpPort(_ port: Int) -> Bool {
+        !nonHttpPorts.contains(port)
+    }
+
+    nonisolated static func openInBrowser(port: Int) {
+        guard let url = URL(string: "http://localhost:\(port)") else { return }
+        Task { @MainActor in
+            NSWorkspace.shared.open(url)
+        }
+    }
 
     func refresh() {
         isScanning = true
