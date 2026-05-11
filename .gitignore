@@ -1,0 +1,12 @@
+.DS_Store
+.build/
+.swiftpm/
+Package.resolved
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+
+# Build artefacts
+PortMonitor.app/
+*.dmg
+dist/
