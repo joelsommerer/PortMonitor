@@ -12,12 +12,18 @@ APP_BUNDLE="$APP_NAME.app"
 echo "→ Release build…"
 swift build -c release
 
+echo "→ Icon vorbereiten…"
+if [ ! -f "AppIcon.icns" ]; then
+    ./build-icon.sh
+fi
+
 echo "→ App-Bundle anlegen…"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 
 cp ".build/release/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+cp "AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 
 cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -36,6 +42,10 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
     <string>$VERSION</string>
     <key>CFBundleExecutable</key>
     <string>$APP_NAME</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>
