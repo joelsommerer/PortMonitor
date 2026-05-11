@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PortMonitor — macOS Menüleisten-App für Dev-Server-Ports</title>
+<meta name="description" content="Schlanke macOS-Menüleisten-App: zeigt belegte TCP-Ports, identifiziert den Prozess und stoppt ihn per Klick. Mit Browser-Quick-Open für Dev-Server." />
+<meta name="theme-color" content="#5a36c4" />
+
+<meta property="og:title" content="PortMonitor — Dev-Server-Ports im Blick" />
+<meta property="og:description" content="macOS-App, die zeigt, welcher Prozess Port 3000, 5173 oder 8080 blockiert — und ihn auf Klick beendet." />
+<meta property="og:image" content="https://joelsommerer.github.io/PortMonitor/icon.png" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://joelsommerer.github.io/PortMonitor/" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="apple-touch-icon" href="icon-256.png" />
+
+<style>
+  :root {
+    --bg: #0b0b14;
+    --bg-2: #14142a;
+    --surface: #1a1a30;
+    --surface-2: #20203a;
+    --border: rgba(255,255,255,0.08);
+    --text: #f1f1f5;
+    --text-dim: #a8a8be;
+    --text-tertiary: #6c6c84;
+    --accent: #5a36c4;
+    --accent-2: #1a73f0;
+    --accent-3: #c133cb;
+    --gradient: linear-gradient(135deg, #1a73f0 0%, #5a36c4 55%, #c133cb 100%);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1200px;
+    height: 800px;
+    background: radial-gradient(ellipse at center, rgba(90,54,196,0.35) 0%, rgba(193,51,203,0.2) 30%, transparent 70%);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Nav */
+  nav {
+    padding: 24px 0;
+  }
+  nav .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .logo img {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+  .nav-links {
+    display: flex;
+    gap: 24px;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    padding: 60px 24px 100px;
+  }
+  .hero img.app-icon {
+    width: 180px;
+    height: 180px;
+    border-radius: 38px;
+    margin-bottom: 32px;
+    box-shadow:
+      0 30px 80px -20px rgba(90,54,196,0.5),
+      0 12px 32px -8px rgba(0,0,0,0.6);
+    animation: float 6s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .hero h1 {
+    font-size: clamp(40px, 6vw, 72px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    background: linear-gradient(180deg, #ffffff 0%, #c8c8e0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 16px;
+  }
+  .hero .tagline {
+    font-size: clamp(18px, 2.4vw, 22px);
+    color: var(--text-dim);
+    max-width: 640px;
+    margin: 0 auto 40px;
+  }
+  .cta-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--gradient);
+    color: white;
+    box-shadow: 0 8px 24px -6px rgba(90,54,196,0.6);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 32px -6px rgba(90,54,196,0.8);
+  }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover {
+    background: var(--surface-2);
+  }
+  .meta {
+    color: var(--text-tertiary);
+    font-size: 13px;
+  }
+
+  /* Mockup Section */
+  .mockup-wrap {
+    margin: 40px auto 0;
+    max-width: 880px;
+    padding: 0 24px;
+  }
+  .mockup {
+    background: linear-gradient(180deg, rgba(40,40,80,0.6) 0%, rgba(20,20,40,0.4) 100%);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .mockup::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at top, rgba(90,54,196,0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .mockup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    position: relative;
+  }
+  @media (max-width: 720px) {
+    .mockup-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Fake macOS popover */
+  .popover {
+    background: rgba(28,28,40,0.96);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px -10px rgba(0,0,0,0.6);
+    font-size: 13px;
+  }
+  .popover-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .popover-header .net-icon {
+    width: 14px; height: 14px;
+    color: var(--accent-2);
+  }
+  .popover-header h3 {
+    font-size: 13px;
+    font-weight: 600;
+    flex: 1;
+  }
+  .toggle-pill {
+    background: rgba(90,54,196,0.4);
+    border-radius: 12px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+  .port-row {
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .port-row:last-child { border-bottom: none; }
+  .port-info { flex: 1; min-width: 0; }
+  .port-num {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .badge-dev {
+    display: inline-block;
+    background: rgba(26,115,240,0.2);
+    color: #5fa6ff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 99px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .port-meta {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+  .row-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-dim);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .row-btn.danger {
+    color: #ff7b7b;
+    border-color: rgba(255,123,123,0.3);
+  }
+  .row-btn.icon-only { padding: 4px 6px; }
+
+  /* Fake table window */
+  .window {
+    background: rgba(22,22,34,0.96);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px -10px rgba(0,0,0,0.6);
+    font-size: 12px;
+  }
+  .window-titlebar {
+    background: linear-gradient(180deg, #2a2a3e 0%, #20203a 100%);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .traffic-light {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+  }
+  .tl-red { background: #ff5f57; }
+  .tl-yellow { background: #ffbd2e; }
+  .tl-green { background: #28ca42; }
+  .window-title {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: 8px;
+    flex: 1;
+    text-align: center;
+  }
+  .window-toolbar {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .search-box {
+    background: rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 5px 10px;
+    flex: 1;
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+  .table-header {
+    display: grid;
+    grid-template-columns: 60px 50px 1fr 50px 80px;
+    gap: 10px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.03);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .table-row {
+    display: grid;
+    grid-template-columns: 60px 50px 1fr 50px 80px;
+    gap: 10px;
+    padding: 8px 14px;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 12px;
+  }
+  .table-row:last-child { border: none; }
+
+  /* Features */
+  .features {
+    padding: 100px 0;
+  }
+  .section-title {
+    text-align: center;
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 700;
+    margin-bottom: 16px;
+    letter-spacing: -0.01em;
+  }
+  .section-subtitle {
+    text-align: center;
+    color: var(--text-dim);
+    margin-bottom: 60px;
+    font-size: 17px;
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
+  .feature {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .feature:hover {
+    transform: translateY(-4px);
+    border-color: rgba(90,54,196,0.4);
+  }
+  .feature-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+    background: var(--gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-bottom: 16px;
+    font-size: 22px;
+  }
+  .feature h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .feature p {
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* Install */
+  .install {
+    padding: 80px 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(90,54,196,0.05) 50%, transparent 100%);
+  }
+  .install-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-top: 40px;
+  }
+  @media (max-width: 720px) {
+    .install-grid { grid-template-columns: 1fr; }
+  }
+  .install-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px;
+  }
+  .install-card h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .step-num {
+    background: var(--gradient);
+    color: white;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .install-card ol {
+    list-style: none;
+    counter-reset: step;
+  }
+  .install-card ol li {
+    counter-increment: step;
+    padding: 10px 0 10px 36px;
+    position: relative;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .install-card ol li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 24px;
+    height: 24px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  pre {
+    background: #0a0a18;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    color: #e6e6f0;
+    margin-top: 12px;
+  }
+  pre .comment { color: #6c6c84; }
+  pre .cmd { color: #5fa6ff; }
+
+  /* Ports list */
+  .ports-list {
+    padding: 80px 0;
+  }
+  .port-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin-top: 30px;
+  }
+  .port-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: left;
+  }
+  .port-chip .num {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-weight: 600;
+    color: var(--text);
+    font-size: 14px;
+  }
+  .port-chip .name {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+
+  /* Footer */
+  footer {
+    padding: 60px 0 40px;
+    border-top: 1px solid var(--border);
+    color: var(--text-tertiary);
+    font-size: 13px;
+    text-align: center;
+  }
+  footer a {
+    color: var(--text-dim);
+    text-decoration: underline;
+    text-decoration-color: rgba(255,255,255,0.2);
+    text-underline-offset: 2px;
+  }
+  footer a:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="logo">
+      <img src="icon.png" alt="" />
+      <span>PortMonitor</span>
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#install">Installation</a>
+      <a href="https://github.com/joelsommerer/PortMonitor">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <img class="app-icon" src="icon.png" alt="PortMonitor App-Icon" />
+  <h1>Welcher Prozess<br/>blockiert deinen Port?</h1>
+  <p class="tagline">
+    Schlanke macOS-Menüleisten-App, die zeigt, welcher Dev-Server Port 3000, 5173 oder 8080 belegt — und ihn per Klick beendet.
+  </p>
+  <div class="cta-row">
+    <a class="btn btn-primary" href="https://github.com/joelsommerer/PortMonitor/releases/latest/download/PortMonitor-1.2.0.dmg">
+      ⬇ DMG herunterladen
+    </a>
+    <a class="btn btn-secondary" href="https://github.com/joelsommerer/PortMonitor">
+      ★ Auf GitHub ansehen
+    </a>
+  </div>
+  <p class="meta">macOS 13+ · Apple Silicon · 1.4 MB · MIT Lizenz</p>
+</section>
+
+<div class="mockup-wrap">
+  <div class="mockup">
+    <div class="mockup-grid">
+
+      <div class="popover">
+        <div class="popover-header">
+          <svg class="net-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.5"/><ellipse cx="8" cy="8" rx="3" ry="6.5"/><line x1="1.5" y1="8" x2="14.5" y2="8"/></svg>
+          <h3>Port Monitor</h3>
+          <span class="toggle-pill">Alle</span>
+          <span style="color: var(--text-tertiary); font-size: 11px;">⟳</span>
+        </div>
+        <div class="port-row">
+          <div class="port-info">
+            <div class="port-num">3000<span class="badge-dev">DEV</span></div>
+            <div class="port-meta">node · PID 4821 · joel</div>
+          </div>
+          <button class="row-btn icon-only" title="Öffnen">🌐</button>
+          <button class="row-btn danger">■ Stop</button>
+        </div>
+        <div class="port-row">
+          <div class="port-info">
+            <div class="port-num">5173<span class="badge-dev">DEV</span></div>
+            <div class="port-meta">vite · PID 7392 · joel</div>
+          </div>
+          <button class="row-btn icon-only" title="Öffnen">🌐</button>
+          <button class="row-btn danger">■ Stop</button>
+        </div>
+        <div class="port-row">
+          <div class="port-info">
+            <div class="port-num">8080<span class="badge-dev">DEV</span></div>
+            <div class="port-meta">java · PID 2104 · joel</div>
+          </div>
+          <button class="row-btn icon-only" title="Öffnen">🌐</button>
+          <button class="row-btn danger">■ Stop</button>
+        </div>
+      </div>
+
+      <div class="window">
+        <div class="window-titlebar">
+          <div class="traffic-light tl-red"></div>
+          <div class="traffic-light tl-yellow"></div>
+          <div class="traffic-light tl-green"></div>
+          <div class="window-title">PortMonitor</div>
+        </div>
+        <div class="window-toolbar">
+          <div class="search-box">🔍 Suchen…</div>
+          <span style="color: var(--text-tertiary); font-size: 11px;">Alle ⓘ</span>
+        </div>
+        <div class="table-header">
+          <div>Port ↑</div><div>Typ</div><div>Prozess</div><div>PID</div><div style="text-align: right;">Aktion</div>
+        </div>
+        <div class="table-row">
+          <div style="font-family: monospace; font-weight: 600;">3000</div>
+          <div><span class="badge-dev">DEV</span></div>
+          <div style="color: var(--text-dim);">node</div>
+          <div style="font-family: monospace; color: var(--text-tertiary);">4821</div>
+          <div style="text-align: right;"><span style="color: #5fa6ff;">🌐</span></div>
+        </div>
+        <div class="table-row">
+          <div style="font-family: monospace; font-weight: 600;">5173</div>
+          <div><span class="badge-dev">DEV</span></div>
+          <div style="color: var(--text-dim);">vite</div>
+          <div style="font-family: monospace; color: var(--text-tertiary);">7392</div>
+          <div style="text-align: right;"><span style="color: #5fa6ff;">🌐</span></div>
+        </div>
+        <div class="table-row">
+          <div style="font-family: monospace; font-weight: 600;">5432</div>
+          <div style="color: var(--text-tertiary);">—</div>
+          <div style="color: var(--text-dim);">postgres</div>
+          <div style="font-family: monospace; color: var(--text-tertiary);">512</div>
+          <div style="text-align: right; color: var(--text-tertiary);">—</div>
+        </div>
+        <div class="table-row">
+          <div style="font-family: monospace; font-weight: 600;">8080</div>
+          <div><span class="badge-dev">DEV</span></div>
+          <div style="color: var(--text-dim);">java</div>
+          <div style="font-family: monospace; color: var(--text-tertiary);">2104</div>
+          <div style="text-align: right;"><span style="color: #5fa6ff;">🌐</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<section class="features" id="features">
+  <div class="container">
+    <h2 class="section-title">Genau ein Job — gut gemacht</h2>
+    <p class="section-subtitle">Keine Konfiguration, keine Account-Anmeldung, kein Ressourcen-Hunger.</p>
+
+    <div class="feature-grid">
+      <div class="feature">
+        <div class="feature-icon">🔍</div>
+        <h3>Live-Übersicht</h3>
+        <p>Auto-Refresh alle 3 Sekunden. Du siehst sofort, welche TCP-Ports lauschen — Port-Nummer, Prozess, PID, User.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🏷️</div>
+        <h3>Dev-Port-Filter</h3>
+        <p>Standardansicht zeigt nur die typischen Dev-Ports (3000, 4200, 5173, 8000, 8080…). Ein Toggle und du siehst alles.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🛑</div>
+        <h3>Sicher beenden</h3>
+        <p>SIGTERM für sauberen Shutdown. Falls der Prozess hängt, wird nach 2 Sekunden SIGKILL nachgeschoben.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🌐</div>
+        <h3>Direkt im Browser</h3>
+        <p>Klick aufs Safari-Symbol öffnet <code>http://localhost:PORT</code>. Datenbank-Ports werden automatisch ausgeblendet.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🪟</div>
+        <h3>Popover oder Fenster</h3>
+        <p>Schnell-Übersicht in der Menüleiste — bei Bedarf in ein vollwertiges Fenster mit Suche und Sortierung wechseln.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⚡</div>
+        <h3>Native und schnell</h3>
+        <p>Reines SwiftUI / AppKit. Kein Electron, keine Browser-Engine. ~360 KB Binary, 1.4 MB DMG.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="install" id="install">
+  <div class="container">
+    <h2 class="section-title">In 30 Sekunden installiert</h2>
+    <p class="section-subtitle">Zwei Wege — wähle was dir lieber ist.</p>
+
+    <div class="install-grid">
+      <div class="install-card">
+        <h3><span class="step-num">A</span>DMG installieren</h3>
+        <ol>
+          <li>DMG-Download starten</li>
+          <li>Image öffnen, App in <code>Applications</code> ziehen</li>
+          <li>Erster Start: Rechtsklick → <strong>Öffnen</strong> → <strong>Öffnen</strong></li>
+        </ol>
+        <a class="btn btn-primary" href="https://github.com/joelsommerer/PortMonitor/releases/latest/download/PortMonitor-1.2.0.dmg" style="margin-top: 16px;">
+          ⬇ PortMonitor-1.2.0.dmg
+        </a>
+      </div>
+      <div class="install-card">
+        <h3><span class="step-num">B</span>Selbst bauen</h3>
+        <p style="color: var(--text-dim); font-size: 14px;">Voraussetzung: macOS 13+ und Xcode CLI Tools.</p>
+<pre><span class="comment"># Xcode CLI installieren falls nötig</span>
+<span class="cmd">xcode-select</span> --install
+
+<span class="comment"># Repo klonen + bauen</span>
+<span class="cmd">git</span> clone https://github.com/joelsommerer/PortMonitor.git
+<span class="cmd">cd</span> PortMonitor
+./build-app.sh
+
+<span class="comment"># installieren + starten</span>
+<span class="cmd">cp</span> -R PortMonitor.app /Applications/
+<span class="cmd">open</span> /Applications/PortMonitor.app</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ports-list">
+  <div class="container">
+    <h2 class="section-title">Standard-Dev-Ports</h2>
+    <p class="section-subtitle">Diese Ports tauchen automatisch im Filter „Dev-Ports" auf.</p>
+
+    <div class="port-grid">
+      <div class="port-chip"><div class="num">3000</div><div class="name">Node, React, Rails</div></div>
+      <div class="port-chip"><div class="num">3001</div><div class="name">Node alt.</div></div>
+      <div class="port-chip"><div class="num">4200</div><div class="name">Angular</div></div>
+      <div class="port-chip"><div class="num">4321</div><div class="name">Astro</div></div>
+      <div class="port-chip"><div class="num">5000</div><div class="name">Flask</div></div>
+      <div class="port-chip"><div class="num">5173</div><div class="name">Vite</div></div>
+      <div class="port-chip"><div class="num">5273</div><div class="name">Vite alt.</div></div>
+      <div class="port-chip"><div class="num">8000</div><div class="name">Django, http.server</div></div>
+      <div class="port-chip"><div class="num">8080</div><div class="name">Tomcat, Spring</div></div>
+      <div class="port-chip"><div class="num">8888</div><div class="name">Jupyter</div></div>
+      <div class="port-chip"><div class="num">9000</div><div class="name">PHP-FPM, MinIO</div></div>
+      <div class="port-chip"><div class="num">9229</div><div class="name">Node Debugger</div></div>
+      <div class="port-chip"><div class="num">11434</div><div class="name">Ollama</div></div>
+      <div class="port-chip"><div class="num">5432</div><div class="name">PostgreSQL</div></div>
+      <div class="port-chip"><div class="num">3306</div><div class="name">MySQL</div></div>
+      <div class="port-chip"><div class="num">6379</div><div class="name">Redis</div></div>
+      <div class="port-chip"><div class="num">27017</div><div class="name">MongoDB</div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>
+      Open Source unter <a href="https://github.com/joelsommerer/PortMonitor/blob/main/LICENSE">MIT-Lizenz</a> ·
+      <a href="https://github.com/joelsommerer/PortMonitor">Source auf GitHub</a> ·
+      <a href="https://github.com/joelsommerer/PortMonitor/issues">Issue melden</a>
+    </p>
+    <p style="margin-top: 8px;">
+      Gebaut mit Swift &amp; SwiftUI. Kein Tracking, keine Telemetrie.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
